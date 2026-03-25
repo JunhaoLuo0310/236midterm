@@ -28,13 +28,24 @@
           '/.*/_sidebar.md': '/_sidebar.md'
         },
         subMaxLevel: 3,
+        sidebarDisplayLevel: 1,
         auto2top: true,
         topMargin: 20,
-        // Use the README.md in this folder as the main page
         homepage: 'README.md',
+        mermaidConfig: {
+          querySelector: ".mermaid"
+        }
       };
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/docsify@4"></script>
+
+    <!-- Mermaid rendering for ```mermaid blocks (Docsify-recommended wiring) -->
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({ startOnLoad: true });
+      window.mermaid = mermaid;
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify-mermaid@2.0.1/dist/docsify-mermaid.js"></script>
   </body>
 </html>

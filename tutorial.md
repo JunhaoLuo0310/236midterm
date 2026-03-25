@@ -178,7 +178,7 @@ This section describes what happens when you run the workflow, and what files it
 
 ### 3.1 Stage-by-stage flow
 
-Conceptually (rendered on GitHub as a diagram):
+Conceptually (rendered as a diagram on GitHub, and on this repo’s GitHub Pages tutorial site):
 
 ```mermaid
 flowchart LR
@@ -194,7 +194,7 @@ flowchart LR
   J --> K[Render PDF]
 ```
 
-> **Note:** Mermaid diagrams render as diagrams on GitHub.com. On GitHub Pages (default Jekyll), this may display as a code block unless you add a Mermaid renderer.
+> **Note:** Mermaid diagrams render as diagrams on GitHub.com and on the GitHub Pages tutorial site under `docs/`. If you paste this Markdown into a different platform, Mermaid may show as a code block unless that platform supports Mermaid.
 
 Plain-text version:
 
@@ -212,6 +212,11 @@ In code, the orchestrator is `workflow/scripts/main.py`, which executes each sta
 - LaTeX source: `exam_paper/tex/paper.tex`
 - Final PDF: `exam_paper/output/paper.pdf`
 
+If `exam_paper/output/paper.pdf` is missing but the render stage “completed”, check:
+
+- `exam_paper/intermediate/render_report.json` (the compilation log)
+- `exam_paper/tex/paper.pdf` (sometimes the PDF is produced in `tex/` even if copying fails)
+
 ### 3.2.1 What “artifact-driven” looks like in practice
 
 During a run you’ll see a growing set of JSON files in `exam_paper/intermediate/`. These aren’t just logs — they’re **contracts** between stages.
@@ -225,6 +230,23 @@ Typical files include:
 - `analysis_results.json` → computed summaries/models + dataset metadata
 
 If the paper looks “generic”, the fix is usually to improve or validate one of these upstream artifacts (especially `analysis_results.json` grounding).
+
+### 3.2.2 Worked example: how artifacts become paper text
+
+To make this concrete, here’s an excerpt from this repo’s `revised_paper_sections.json` (the revised manuscript draft), and how it maps back to earlier stages.
+
+**Manuscript excerpt (from `revised_paper_sections.json`)**
+
+> Title: “Distribution, Timing, and Financial Magnitude of Tracked NIH/HHS Award Disruptions in a Public Snapshot Dataset”
+>
+> Results (excerpt): “Among 5419 tracked disrupted award records, status categories were ‘Possibly Reinstated’ (2174 [40.12%]) …”
+
+**Where those numbers came from**
+
+- The dataset size (5419) comes from `analysis_results.json` → `selected_dataset.n_rows`.
+- The status distribution comes from `analysis_results.json` → `descriptive_results.sample_characteristics.status.top_categories`.
+
+This “traceability” is the main trick for avoiding fluffy LLM writing: the writing stage should *copy* computed values from artifacts instead of inventing them.
 
 ### 3.3 How to debug quickly when something breaks
 
@@ -504,7 +526,7 @@ When the ideal method is not feasible (e.g., outcome type mismatch), the workflo
 - simple association models
 - smaller model families that are guaranteed to run
 
-The point is not to “hide failure” — it is to produce a coherent, honest paper within the exam time limit.
+The point is not to “hide failure” — it is to produce a coherent, honest paper even when the dataset is messy or time is limited.
 
 In practice, degradation often means:
 
@@ -611,7 +633,7 @@ Examples of config knobs that commonly matter:
 
 - `max_profile_columns`: if schema summaries are truncated too aggressively
 - `max_categorical_levels`: if plots/tables explode in width
-- `analysis.unsupported_methods_fail_soft`: keep this `true` for the exam so you get a paper even when a fancy method fails
+- `analysis.unsupported_methods_fail_soft`: keep this `true` for time-constrained or exploratory runs so you still get a coherent paper even when a fancy method fails
 
 General guidance:
 
@@ -692,14 +714,14 @@ If you tell me your blog platform (GitHub Pages, Hugo, Jekyll, Notion, etc.), I 
 
 ## 9) Publishing as a GitHub Pages site (optional)
 
-If you want a “real webpage” version with a clean theme (no extra dependencies), GitHub Pages + Jekyll is the simplest option.
-
-This repo includes a Pages-ready copy under `docs/`.
+This repo ships a ready-to-serve GitHub Pages site under `docs/` using Docsify (so you get a left sidebar that follows your scroll position).
 
 ### 9.1 What to commit
 
-- `docs/index.md` (the tutorial as the site homepage)
-- `docs/_config.yml` (theme + site title)
+- `docs/index.html` (Docsify site entry)
+- `docs/README.md` (the rendered tutorial content)
+- `docs/_sidebar.md` (sidebar entry; section headings are generated automatically)
+- `docs/.nojekyll` (ensures GitHub Pages serves `_sidebar.md` correctly)
 
 ### 9.2 How to enable it on GitHub
 
@@ -716,4 +738,4 @@ After a minute, GitHub will show a URL like:
 
 ### 9.3 How to keep the repo tutorial and Pages tutorial in sync
 
-Treat `tutorial.md` as your “source of truth” and periodically copy it into `docs/index.md` (or ask me to automate that copy step).
+Treat `tutorial.md` as your “source of truth” and periodically copy it into `docs/README.md`.
