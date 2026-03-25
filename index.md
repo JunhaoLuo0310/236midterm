@@ -2,9 +2,9 @@
 title: "Tutorial"
 ---
 
-# Tutorial: Designing a Generic Automated Research Workflow (BST236 Midterm)
+# Tutorial: Designing a Generic Automated Research Workflow
 
-This tutorial is the **written** deliverable for the BST236 midterm project. It explains how our team designed a generic, end-to-end workflow that can take a brand-new public health dataset and automatically produce a JAMA Network Open–style paper (including tables, figures, references, and a compiled PDF) with minimal human intervention.
+This tutorial explains how to design a generic, end-to-end workflow that can take a brand-new public health dataset and automatically produce a JAMA Network Open–style paper (including tables, figures, references, and a compiled PDF) with minimal human intervention.
 
 This is intentionally beginner-friendly and self-contained. You do *not* need prior experience with multi-agent systems, LaTeX, or LLM orchestration to follow the design.
 

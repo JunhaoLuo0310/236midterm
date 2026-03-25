@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Automated Research Workflow Tutorial</title>
+    <meta name="description" content="A practical tutorial for a dataset-agnostic, artifact-driven workflow that generates a JAMA-style paper." />
+
+    <!-- Docsify theme (kept minimal; no custom colors) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify@4/lib/themes/vue.css" />
+    <style>
+      /* Keep layout readable on wide screens */
+      .content { max-width: 980px; }
+      /* Make the sidebar feel like a TOC */
+      .sidebar { width: 320px; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <script>
+      window.$docsify = {
+        name: 'Automated Research Workflow',
+        repo: '',
+        loadSidebar: true,
+        alias: {
+          '/.*/_sidebar.md': '/_sidebar.md'
+        },
+        subMaxLevel: 3,
+        auto2top: true,
+        topMargin: 20,
+        // Use the README.md in this folder as the main page
+        homepage: 'README.md',
+      };
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/docsify@4"></script>
+  </body>
+</html>

@@ -1,10 +1,34 @@
-# Tutorial: Designing a Generic Automated Research Workflow (BST236 Midterm)
+# Tutorial: Designing a Generic Automated Research Workflow
 
-This tutorial is the **written** deliverable for the BST236 midterm project. It explains how our team designed a generic, end-to-end workflow that can take a brand-new public health dataset and automatically produce a JAMA Network Open–style paper (including tables, figures, references, and a compiled PDF) with minimal human intervention.
+This tutorial explains how to design a generic, end-to-end workflow that can take a brand-new public health dataset and automatically produce a JAMA Network Open–style paper (including tables, figures, references, and a compiled PDF) with minimal human intervention.
 
 This is intentionally beginner-friendly and self-contained. You do *not* need prior experience with multi-agent systems, LaTeX, or LLM orchestration to follow the design.
 
-> **Tip:** Want this to look like a real webpage? This repo includes an optional GitHub Pages version (Section 9) that renders this tutorial from `docs/`.
+> **Tip:** Want this to look like a real webpage? This repo includes an optional GitHub Pages version (Section 9) that renders this tutorial from `docs/` with a left sidebar.
+
+## Authors
+
+- Johnny Zhao
+- Yicheng He
+- Junhao Luo
+
+## What you’ll learn
+
+By the end, you should be able to:
+
+- Break an end-to-end “paper generator” into **small stages** with explicit inputs/outputs
+- Design **dataset-agnostic** logic (type-driven, validated assumptions)
+- Add **guardrails** so the system fails softly and still produces a coherent draft
+- Debug quickly by inspecting the exact artifact that a stage produced
+
+## What this workflow produces
+
+At a high level, the workflow produces four kinds of things:
+
+- **Artifacts** (JSON): machine-readable stage outputs you can inspect and rerun from
+- **Tables** (CSV): analysis results in a format you can open anywhere
+- **Figures** (PNG): bounded-size plots that don’t explode on large datasets
+- **Paper** (TeX + PDF): a compiled manuscript with references
 
 ---
 
@@ -31,13 +55,13 @@ This is intentionally beginner-friendly and self-contained. You do *not* need pr
 - [8) Appendix: file reference and troubleshooting](#8-appendix-file-reference-and-troubleshooting)
 - [9) Publishing as a GitHub Pages site (optional)](#9-publishing-as-a-github-pages-site-optional)
 
-> **Note:** If you are reading this during the exam: start with Section 2 (run), then Section 3.3 (debug), then Appendix 8.2 (common failures).
+> **Note:** If you’re in a hurry: start with Section 2 (run), then Section 3.3 (debug), then Appendix 8.2 (common failures).
 
 ---
 
 ## 1) Why this workflow exists
 
-### 1.1 The problem (exam reality)
+### 1.1 The problem (real-world reality)
 
 An “automatic paper generator” fails in predictable ways when the dataset is unfamiliar:
 
@@ -46,7 +70,7 @@ An “automatic paper generator” fails in predictable ways when the dataset is
 - **Brittle plots**: large datasets can create unreadably large figures or crash image generation.
 - **Hard-to-debug failures**: if everything is one big script, it’s impossible to locate what went wrong quickly.
 
-Our solution is to treat paper-generation like a production pipeline: **small stages + saved artifacts + verification + fallbacks**.
+Our solution is to treat paper generation like a production pipeline: **small stages + saved artifacts + verification + fallbacks**.
 
 ### 1.2 What makes our workflow different
 
@@ -90,6 +114,17 @@ You need:
 
 If LaTeX is missing, the workflow is configured to try a minimal fallback so you still get a usable output.
 
+### 2.1.1 Input expectations (what to put in `exam_paper/data/`)
+
+The loader stage is designed around a simple idea: *discover tabular files + any documentation that helps interpret them*.
+
+Recommended inputs:
+
+- One or more CSV / Excel files (the “analytic tables”)
+- A short `Data_Description.md` (or similar) describing columns and context
+
+The workflow will still run if documentation is missing, but you’ll usually get a better research question + analysis plan if you include even a few bullets about what the dataset represents.
+
 Quick setup commands (macOS/Linux shell):
 
 ```bash
@@ -105,13 +140,15 @@ python -c "import os; print('OPENAI_API_KEY set:', bool(os.getenv('OPENAI_API_KE
 
 ### 2.2 Repo structure (why it’s organized this way)
 
-We separate reusable code from exam outputs:
+We separate reusable code from run outputs:
 
 - `workflow/` — generic reusable pipeline
-- `exam_paper/` — the exam run (inputs + intermediate artifacts + final output)
+- `exam_paper/` — a run directory (inputs + intermediate artifacts + final output)
 - `sample/` — sample dataset and example output
 
-This prevents “exam artifacts” from contaminating the reusable workflow and keeps debugging clean.
+This prevents run artifacts from contaminating the reusable workflow and keeps debugging clean.
+
+> **Tip:** Treat `exam_paper/` as disposable. If you want a fresh run, wipe `exam_paper/intermediate/` and `exam_paper/output/` and rerun end-to-end.
 
 ### 2.3 One-command run
 
@@ -175,6 +212,20 @@ In code, the orchestrator is `workflow/scripts/main.py`, which executes each sta
 - LaTeX source: `exam_paper/tex/paper.tex`
 - Final PDF: `exam_paper/output/paper.pdf`
 
+### 3.2.1 What “artifact-driven” looks like in practice
+
+During a run you’ll see a growing set of JSON files in `exam_paper/intermediate/`. These aren’t just logs — they’re **contracts** between stages.
+
+Typical files include:
+
+- `load_data_summary.json` → what files were discovered + basic schema info
+- `dataset_summary.json` → the interpreted dataset description and variable roles
+- `research_question.json` → a concrete, feasible question
+- `analysis_plan.json` → the structured plan the executor will implement
+- `analysis_results.json` → computed summaries/models + dataset metadata
+
+If the paper looks “generic”, the fix is usually to improve or validate one of these upstream artifacts (especially `analysis_results.json` grounding).
+
 ### 3.3 How to debug quickly when something breaks
 
 Because each stage writes a dedicated artifact, debugging is usually:
@@ -185,6 +236,19 @@ Because each stage writes a dedicated artifact, debugging is usually:
 4. Rerun only the failed stage (or rerun end-to-end if time permits)
 
 This is the main reason we avoid “single huge notebook” designs.
+
+Practical commands that help:
+
+```bash
+# See what artifacts exist
+ls -1 exam_paper/intermediate
+
+# Quick sanity check: is the JSON valid?
+python -m json.tool exam_paper/intermediate/analysis_plan.json > /dev/null && echo OK
+
+# Skim the top of a large artifact
+python -c "import json; p='exam_paper/intermediate/analysis_results.json'; d=json.load(open(p)); print(list(d.keys()))"
+```
 
 <details>
 <summary><strong>Debugging cheat sheet (fast)</strong></summary>
@@ -237,6 +301,66 @@ Every stage has an explicit input and output. This makes the workflow testable a
 | 10. Render PDF | `render_paper.py` | No | revised sections + tables/figures + bib | `paper.tex` + `paper.pdf` |
 
 The key idea is that “AI stages” are sandwiched between deterministic stages: the AI proposes structured objects, and deterministic code executes/validates.
+
+#### 4.0.1 Concrete examples (real excerpts)
+
+These shortened excerpts are from actual artifacts in this repository.
+
+`dataset_summary.json` (what the system thinks the dataset *is*):
+
+```json
+{
+  "dataset_summary": {
+    "dataset_overview": {
+      "analytic_files": ["nih_terminations.csv"],
+      "documentation_files": ["Data_Description.md", "...pdf"]
+    },
+    "inferred_study_characteristics": {
+      "likely_unit_of_observation": "A grant/award record ...",
+      "likely_study_design": "Observational, descriptive ..."
+    }
+  }
+}
+```
+
+`analysis_plan.json` (what will be computed):
+
+```json
+{
+  "analysis_plan": {
+    "analysis_overview": {
+      "question_type": "descriptive",
+      "overall_strategy": "Produce (1) overall and stratified tabulations ..."
+    },
+    "variable_mapping": {
+      "outcome": ["status", "termination_date", "total_award"],
+      "primary_exposure": ["org_type", "org_state", "activity_code"]
+    }
+  }
+}
+```
+
+`analysis_results.json` (what actually happened):
+
+```json
+{
+  "analysis_results": {
+    "selected_dataset": {
+      "table_name": "nih_terminations",
+      "n_rows": 5419,
+      "n_cols": 57,
+      "resolved_required_variables": ["status", "termination_date", "org_state", "..."]
+    },
+    "descriptive_results": {
+      "sample_characteristics": {
+        "status": {"variable_type": "categorical", "n_total": 5419, "pct_missing": 0.0}
+      }
+    }
+  }
+}
+```
+
+Why this matters: once you have `analysis_results.json`, the writing stages can be prompted to *quote* numbers from it rather than inventing narrative.
 
 ### 4.1 Scripts: deterministic executors
 
@@ -313,6 +437,13 @@ Instead of jumping straight into modeling, we force a structured analysis plan (
 
 Why it helps: it reduces wasted computation and prevents the model from inventing methods that don’t fit the data.
 
+What to look for in a “good” plan artifact:
+
+- The plan is explicit about **question type** (descriptive vs associational)
+- It lists the exact variables it expects to use (and allows alternatives)
+- It contains **field-specific denominators** (missingness-aware summaries)
+- It includes **hard limits** (top K categories, bounded figure size)
+
 ### Pattern 2: Critic → fix loop (draft then revise)
 
 We separate writing into two steps:
@@ -340,6 +471,8 @@ Draft writer (write_paper)  →  Critic/reviewer (revise_paper)
 
 Even if both steps use an LLM, splitting them reduces self-justification: the revision step is explicitly prompted to be skeptical and to demand grounding.
 
+If you want to make the revision step stronger, the easiest lever is: require that every major Results paragraph includes at least one number and names the artifact it came from (e.g., sample size from `analysis_results.json`).
+
 ### Pattern 3: Verification as a non-negotiable step
 
 For academic outputs, “looks fine” is not enough. Verification means:
@@ -350,12 +483,18 @@ For academic outputs, “looks fine” is not enough. Verification means:
 
 We treat the compilation step as a test: if it fails, the pipeline should either fix it or degrade gracefully.
 
-An exam-friendly “quality gate” checklist you can apply in 60 seconds:
+An easy “quality gate” checklist you can apply in 60 seconds:
 
 - [ ] Does `exam_paper/output/paper.pdf` exist?
 - [ ] Do `exam_paper/output/figures/` and `exam_paper/output/tables/` contain files?
 - [ ] Does the Results section contain numbers (not just adjectives)?
 - [ ] Are claims cautious when causality is not justified?
+
+If one box fails, you can usually trace it to a single stage:
+
+- Missing PDF → rendering/LaTeX stage
+- Empty tables/figures → table/figure stage or upstream analysis results
+- “No numbers” in Results → revise prompt needs stronger grounding rules
 
 ### Pattern 4: Graceful degradation (always produce a paper)
 
@@ -366,6 +505,12 @@ When the ideal method is not feasible (e.g., outcome type mismatch), the workflo
 - smaller model families that are guaranteed to run
 
 The point is not to “hide failure” — it is to produce a coherent, honest paper within the exam time limit.
+
+In practice, degradation often means:
+
+- If dates can’t be parsed reliably, summarize date *coverage* instead of trends
+- If a candidate outcome is too sparse, pivot to descriptive distributions
+- If a plot would be unreadable, limit to top K levels and label the choice
 
 ### Pattern 5: Type-driven visualization with hard bounds
 
@@ -396,9 +541,21 @@ Good:
 
 - “Find a low-cardinality categorical column that looks like an entity identifier.”
 
+Practical heuristic used by generic pipelines:
+
+- Prefer categorical columns with 5–50 unique values for grouping
+- Avoid “ID-like” columns (very high cardinality) unless you’re deduplicating
+- Treat free-text columns as optional unless you have a specific, simple text task
+
 ### Rule B: Prefer “detect and validate” over “assume and proceed”
 
 For example, if a plan calls for logistic regression, validate that the outcome is binary and has enough events.
+
+Validation examples:
+
+- If a “numeric” column is mostly non-numeric strings, coerce + report conversion failures
+- If a date column contains multiple formats, parse with a strict fallback and report unparseable counts
+- If a categorical column has hundreds of levels, collapse to top K for plots/tables
 
 ### Rule C: Put hard limits everywhere
 
@@ -412,6 +569,8 @@ Examples of necessary limits:
 These limits are not just performance improvements—they prevent runtime crashes.
 
 One concrete example we hit during development: plotting a timeline with thousands of rows can silently create an image so tall that image formats reject it. The fix is architectural: always cap figure dimensions and/or sample points.
+
+This is also why the pipeline prefers “summaries first”: a time-binned count plot (weekly/monthly) is usually safer than plotting every point.
 
 ### Rule D: Enforce honest claims
 
@@ -430,6 +589,8 @@ If you want a new stage (e.g., automatic slide generation), follow the same arti
 1. Define a new output artifact (e.g., `slides.qmd` or `slides.pdf`).
 2. Keep inputs explicit (which upstream JSON does it depend on?).
 3. Add verification (does it render/compile?).
+
+Concrete example: if you add a “slides” stage, treat the slide deck like the PDF stage — it should always either produce a file or produce a clear, minimal fallback.
 
 ### 7.2 Add a new “skill” document
 
@@ -452,11 +613,16 @@ Examples of config knobs that commonly matter:
 - `max_categorical_levels`: if plots/tables explode in width
 - `analysis.unsupported_methods_fail_soft`: keep this `true` for the exam so you get a paper even when a fancy method fails
 
+General guidance:
+
+- When in doubt, prefer limits/config over code changes.
+- Code changes should usually be reserved for new capabilities (not one-off exceptions).
+
 ---
 
 ## 8) Appendix: file reference and troubleshooting
 
-### 8.1 Key files to know (exam-time)
+### 8.1 Key files to know
 
 If you only memorize five locations:
 
@@ -473,6 +639,12 @@ If you only memorize five locations:
 - Symptom: AI stages fail immediately.
 - Fix: export `OPENAI_API_KEY` and rerun.
 
+If you want to confirm it’s visible to Python:
+
+```bash
+python -c "import os; print(bool(os.getenv('OPENAI_API_KEY')))"
+```
+
 **Reference JSON parsing errors**
 
 - Symptom: reference generation fails because the model outputs invalid JSON escaping.
@@ -482,6 +654,8 @@ If you only memorize five locations:
 
 - Symptom: no PDF produced.
 - Fix: check LaTeX is installed; otherwise rely on fallback output and/or install a TeX distribution.
+
+If you just need the source, the workflow also writes the TeX file to `exam_paper/tex/paper.tex`.
 
 **Plots crash or become enormous**
 
@@ -497,6 +671,14 @@ If you only memorize five locations:
 
 - Symptom: phrases like “the data shows” appear without concrete results.
 - Fix: strengthen the revision step to (a) demand numbers and (b) cross-check against `analysis_results.json`.
+
+A simple rule that works well in practice: every Results paragraph must contain at least one of:
+
+- a sample size (N)
+- a percentage
+- a median (IQR) or mean (SD)
+
+…and those numbers must be traceable to `analysis_results.json`.
 
 ---
 
