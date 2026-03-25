@@ -4,6 +4,8 @@ This tutorial explains how to design a generic, end-to-end workflow that can tak
 
 This is intentionally beginner-friendly and self-contained. You do *not* need prior experience with multi-agent systems, LaTeX, or LLM orchestration to follow the design.
 
+> **Tip:** You are reading the GitHub Pages-friendly version of this tutorial. It is rendered with Docsify so you get a left sidebar and scroll-following section navigation.
+
 ## Authors
 
 - Johnny Zhao
