@@ -1,1 +1,1 @@
-- [Tutorial](README.md)
+- [Tutorial](#/)
