@@ -170,6 +170,82 @@ Tip: you can point the workflow at a different dataset folder without moving fil
 python workflow/scripts/main.py --data-dir path/to/new_dataset_folder
 ```
 
+### 2.4 Simpler option: prompt-only (no `main.py`)
+
+If you do not need a fully automated pipeline (or you are doing a lightweight, one-off analysis), a simpler alternative is to use **Copilot prompts directly** instead of running `workflow/scripts/main.py`.
+
+What this gives you:
+
+- Faster iteration for a single dataset
+- No orchestration code to run
+- You can still follow the same “artifact-driven” idea by saving outputs as Markdown/JSON
+
+What you give up:
+
+- Reproducibility (more manual steps)
+- Automatic table/figure generation and PDF rendering
+- Built-in validation and fallbacks across stages
+
+**Recommended prompt-only flow (in VS Code)**
+
+1. Put your dataset files in `exam_paper/data/` (and any documentation like `Data_Description.md`).
+2. Open the data description file (and optionally skim the CSV headers).
+3. Ask Copilot to produce the same intermediate artifacts this workflow would generate:
+  - dataset summary
+  - research question
+  - analysis plan
+4. Save each output into `exam_paper/intermediate/` (for example, `research_question.json`, `analysis_plan.json`).
+5. Use follow-up prompts to draft paper sections grounded in the saved artifacts.
+
+**Example prompts you can copy/paste**
+
+Dataset understanding prompt:
+
+```text
+You are helping me design a reproducible research workflow.
+
+Given the dataset documentation below, write a JSON object named dataset_summary with:
+- dataset_overview (what files exist, unit of observation)
+- inferred_study_characteristics (design, population, time range if available)
+- candidate_variables grouped by type (categorical, numeric, datetime)
+- data_quality_notes (missingness, messy values likely to occur)
+
+Return ONLY valid JSON.
+
+[PASTE Data_Description.md HERE]
+```
+
+Analysis plan prompt:
+
+```text
+Using the dataset_summary JSON below, propose a feasible analysis plan for a JAMA-style observational paper.
+
+Requirements:
+- Choose a question type (descriptive or associational)
+- Specify outcomes/exposures as variable names drawn from dataset_summary
+- Include fallbacks if key variables are missing or unusable
+- Include a table plan (Table 1 sample characteristics) and at least 1 figure plan
+
+Return ONLY valid JSON with top-level key analysis_plan.
+
+[PASTE dataset_summary JSON HERE]
+```
+
+Grounded writing prompt (Results section):
+
+```text
+Draft a Results section (2–4 paragraphs) that is strictly grounded in the analysis_results JSON below.
+
+Rules:
+- Every paragraph must include at least one number from analysis_results
+- No causal claims unless the plan explicitly supports it
+- If a number is not present in analysis_results, do not invent it
+
+[PASTE analysis_results JSON HERE]
+```
+
+If you want the prompt-only approach to still feel structured, the key trick is: treat your saved JSON outputs as “stage artifacts,” and keep updating them deliberately as you iterate.
+
 ---
 
 ## 3) The system in action (a run walkthrough)
